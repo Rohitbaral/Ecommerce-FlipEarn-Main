@@ -1,0 +1,186 @@
+generator client {
+    provider      = "prisma-client-js"
+    previewFeatures = ["driverAdapters"]
+    binaryTargets = ["native", "rhel-openssl-1.0.x", "rhel-openssl-3.0.x"]
+}
+
+datasource db {
+    provider  = "postgresql"
+    url       = env("DATABASE_URL")
+    directUrl = env("DIRECT_URL")
+}
+
+model User {
+    id        String   @id
+    email     String
+    name      String
+    image     String
+    earned    Float    @default(0)
+    withdrawn Float    @default(0)
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+
+    // Recommendation System Preferences
+    lastViewedCategory    String?
+    preferredMinFollowers Float?   @default(0)
+    preferredMaxFollowers Float?   @default(1000000)
+    preferredMinPrice     Float?   @default(0)
+    preferredMaxPrice     Float?   @default(10000)
+    Listing       Listing[]
+    ownerChats    Chat[]       @relation("OwnerChats")
+    chatUserChats Chat[]       @relation("ChatUserChats")
+    withdrawals   Withdrawal[]
+    transactions  Transaction[]
+}
+
+enum Platform {
+    youtube
+    instagram
+    tiktok
+    facebook
+    twitter
+    linkedin
+    pinterest
+    snapchat
+    twitch
+    discord
+}
+
+enum Niche {
+    lifestyle
+    fitness
+    food
+    travel
+    tech
+    gaming
+    fashion
+    beauty
+    business
+    education
+    entertainment
+    music
+    art
+    sports
+    health
+    finance
+    other
+}
+
+enum Status {
+    active
+    ban
+    sold
+    deleted
+    inactive
+}
+
+model Listing {
+    id                    String   @id @default(uuid())
+    ownerId               String
+    title                 String
+    platform              Platform
+    username              String?
+    followers_count       Float
+    engagement_rate       Float?
+    monthly_views         Float?
+    niche                 Niche
+    price                 Float
+    description           String?
+    verified              Boolean  @default(false)
+    monetized             Boolean  @default(false)
+    country               String?
+    age_range             String
+    status                Status   @default(active)
+    featured              Boolean  @default(false)
+    images                String[]
+    tags                  String[] @default([])
+    createdAt             DateTime @default(now())
+    updatedAt             DateTime @updatedAt
+    platformAssured       Boolean  @default(false)
+    isCredentialSubmitted Boolean  @default(false)
+    isCredentialVerified  Boolean  @default(false)
+    isCredentialChanged   Boolean  @default(false)
+
+    owner        User          @relation(fields: [ownerId], references: [id])
+    chats        Chat[]
+    transactions Transaction[]
+    Credential   Credential?
+}
+
+model Chat {
+    id                  String            @id @default(uuid())
+    chatUserId          String
+    ownerUserId         String
+    listingId           String
+    messages            Message[]
+    platformMessages    PlatformMessage[]
+    createdAt           DateTime          @default(now())
+    updatedAt           DateTime          @updatedAt
+    active              Boolean           @default(true)
+    lastMessage         String            @default("")
+    isLastMessageRead   Boolean           @default(true)
+    lastMessageSenderId String            @default("")
+    isTokenAmountPaid   Boolean           @default(false)
+
+    ownerUser User    @relation("OwnerChats", fields: [ownerUserId], references: [id])
+    chatUser  User    @relation("ChatUserChats", fields: [chatUserId], references: [id])
+    listing   Listing @relation(fields: [listingId], references: [id])
+
+    @@unique([chatUserId, ownerUserId, listingId])
+}
+
+model Message {
+    id        String   @id @default(uuid())
+    chatId    String
+    message   String
+    sender_id String
+    isRead    Boolean  @default(false)
+    createdAt DateTime @default(now())
+
+    chat Chat @relation(fields: [chatId], references: [id])
+}
+
+model PlatformMessage {
+    id        String   @id @default(uuid())
+    chatId    String
+    message   String
+    sender_id String   @default("platform")
+    createdAt DateTime @default(now())
+
+    chat Chat @relation(fields: [chatId], references: [id])
+}
+
+model Credential {
+    id                 String   @id @default(uuid())
+    listingId          String   @unique
+    originalCredential Json[]   @default([])
+    updatedCredential  Json[]   @default([])
+    createdAt          DateTime @default(now())
+
+    listing Listing @relation(fields: [listingId], references: [id])
+}
+
+model Transaction {
+    id        String   @id @default(uuid())
+    listingId String
+    ownerId   String
+    userId    String
+    amount    Float
+    isPaid    Boolean  @default(false)
+    createdAt DateTime @default(now())
+
+    listing Listing @relation(fields: [listingId], references: [id])
+    user    User    @relation(fields: [userId], references: [id])
+}
+
+model Withdrawal {
+    id          String   @id @default(uuid())
+    userId      String
+    amount      Float
+    account     Json[]
+    isWithdrawn Boolean  @default(false)
+    createdAt   DateTime @default(now())
+    updatedAt   DateTime @updatedAt
+
+    user User @relation(fields: [userId], references: [id])
+}
